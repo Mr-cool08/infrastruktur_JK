@@ -1,1 +1,52 @@
+# Fristående reverse proxy för utbildningsintyg.se och kursplan.se.
+# Starta som en egen Docker Compose-stack, inte från applikationsprojekten.
+name: shared-traefik
+
 services:
+  traefik:
+    image: traefik:v3.7.17
+    container_name: shared-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=jk_public_net
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --accesslog=true
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # OBS: Docker-socket ger stor behörighet även monterad :ro.
+      # Överväg en begränsad Docker API-socketproxy för bättre isolering.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+      # Lagra origin-certifikat och privata nycklar enbart på servern.
+      - /etc/ssl/cloudflare:/etc/traefik/certs:ro
+
+    networks:
+      - public_net
+
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  public_net:
+    external: true
+    name: jk_public_net
