@@ -1,0 +1,25 @@
+# Samma middleware-namn som utbildningsintyg.se använder via @file.
+http:
+  middlewares:
+    security-headers:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        referrerPolicy: "no-referrer"
+        frameDeny: true
+        permissionsPolicy: "geolocation=(), microphone=(), camera=()"
+
+    upload-buffer:
+      buffering:
+        maxRequestBodyBytes: 104857600  # 100 MB
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/origin.crt
+      keyFile: /etc/traefik/certs/origin.key
+
+    # Aktivera först när separata Cloudflare Origin CA-filer finns på servern.
+    # - certFile: /etc/traefik/certs/kursplan.crt
+    #   keyFile: /etc/traefik/certs/kursplan.key
