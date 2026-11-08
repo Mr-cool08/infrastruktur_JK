@@ -1,4 +1,5 @@
-# Samma middleware-namn som utbildningsintyg.se använder via @file.
+# Gemensamma HTTP-middlewares och TLS-certifikat för den centrala proxyn.
+# Utbildningsintygs routrar definieras här bredvid i dynamic/utbildningsintyg.yml.
 http:
   middlewares:
     security-headers:
