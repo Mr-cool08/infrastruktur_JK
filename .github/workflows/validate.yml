@@ -1,0 +1,28 @@
+name: Validate shared Traefik configuration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install YAML test dependency
+        run: python -m pip install PyYAML==6.0.2
+
+      - name: Validate central proxy routing and security contract
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate Docker Compose model
+        run: docker compose config --quiet
