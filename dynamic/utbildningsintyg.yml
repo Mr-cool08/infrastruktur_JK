@@ -1,0 +1,33 @@
+# Centralt hanterad publik routing för utbildningsintyg.se.
+# Samtliga routrar, HTTPS-val och middlewares ägs av den gemensamma Traefik-stacken.
+# Den stabila backend-adressen är en Docker-nätverksalias i JK:s app (jk_public_net).
+http:
+  routers:
+    utbildningsintyg-web:
+      rule: "Host(`utbildningsintyg.se`) || Host(`www.utbildningsintyg.se`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: utbildningsintyg-backend
+      middlewares:
+        - security-headers
+        - upload-buffer
+      # Under övergången väljs befintlig @docker-router före @file-routern.
+      # När appens gamla labels tas bort i JK PR #530 tar denna router över.
+      priority: 1
+
+    utbildningsintyg-mta-sts:
+      rule: "Host(`mta-sts.utbildningsintyg.se`) && Path(`/.well-known/mta-sts.txt`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: utbildningsintyg-backend
+      middlewares:
+        - security-headers
+      priority: 1
+
+  services:
+    utbildningsintyg-backend:
+      loadBalancer:
+        servers:
+          - url: "http://utbildningsintyg-web:80"
