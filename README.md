@@ -5,18 +5,14 @@ Fristående Docker Compose-stack för `utbildningsintyg.se` och `kursplan.se`. T
 ## Mappstruktur på produktionsservern
 
 ```text
-/opt/traefik/
+/traefik/
 ├── docker-compose.yml
 ├── update.py
-└── dynamic/
-    └── tls.yml
+├── .env
+
+
 ```
 
-Följande filer ska finnas på **servern**, inte i GitHub:
-- `/etc/ssl/cloudflare/origin.crt` och `/etc/ssl/cloudflare/origin.key` för utbildningsintyg.se
-- `/etc/ssl/cloudflare/kursplan.crt` och `/etc/ssl/cloudflare/kursplan.key` för Kursplan när denna domän aktiveras
-
-Kontrollera var utbildningsintygets nuvarande origin-certifikat ligger (dess Compose använder `ORIGIN_CERT_PATH` och `ORIGIN_KEY_PATH`), och att rätt filpar kopierats säkert innan den gamla proxyn stoppas. Privata nycklar får aldrig committas.
 
 ## Förberedelser
 
