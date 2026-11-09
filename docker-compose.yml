@@ -1,13 +1,25 @@
-name: cloudflare-tunnel
+
+name: jk-cloudflare
 
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?Ange TUNNEL_TOKEN i .env}
+
+    command: tunnel --no-autoupdate run
+
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+
     networks:
-      - tunnel_net
+      - tunnel
+      - private
 
 networks:
-  tunnel_net:
-    driver: bridge
+  tunnel:
+    external: true
+    name: jk_tunnel_net
+
+  private:
+    external: true
+    name: jk_private_net
