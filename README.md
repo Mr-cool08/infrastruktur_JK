@@ -2,7 +2,7 @@
 
 Detta repository är avsett för **gemensam infrastruktur** på Docker-servern. Applikationerna **utbildningsintyg.se**, **kursplan.se** och det interna systemet **JKA** förvaltas och driftsätts i egna projekt. Gemensam trafik in till webbapplikationerna ska hanteras av **Cloudflare Tunnel (cloudflared)** i stället för en egen publik Traefik-proxy.
 
-> **Status (2026-11-09): målarkitektur, inte färdig driftsättning.** Den befintliga `docker-compose.yml` i detta repository kör redan cloudflared med ett lokalt Compose-nät `tunnel_net`, men de gemensamma externa nätverken, anslutningen av applikationerna och Cloudflare-rutterna enligt nedan måste fortfarande konfigureras. `update.py` innehåller fortfarande gamla Traefik-benämningar. Den här README-filen är en plan och ändrar inte den körande infrastrukturen.
+> **Status (2026-11-09): målarkitektur för Cloudflare Tunnel.** Compose-filen ansluter cloudflared till de externa nätverken `jk_tunnel_net` och `jk_private_net`. Nätverken, applikationernas anslutningar och Cloudflare-rutterna behöver finnas i driftmiljön.
 
 ## 1. Översikt
 
@@ -213,13 +213,37 @@ curl -I https://kursplan.se
 
 Kontrollera också att JKA från en **icke behörig** klient möts av Access-inloggning/nekad åtkomst och att databasportar inte är publicerade.
 
-**Kör inte `docker compose down -v` eller `docker volume prune` under migreringen.** Det kan radera data. `update.py` har fortfarande Traefik-text och bör rättas vid en senare, separat kodändring; denna README-uppdatering ändrar inte skriptet.
+**Kör inte `docker compose down -v` eller `docker volume prune` under migreringen.** Det kan radera data.
 
 ## 8. Ansvarsfördelning
 
-- **Detta repository:** gemensam cloudflared-stack, gemensamma nätverkskonventioner, uppdateringsrutiner och dokumentation.
+- **Detta repository:** gemensam cloudflared-stack, gemensamma nätverkskonventioner, värdserverns Fail2ban-konfiguration för SSH och uppdateringsrutiner.
 - **Utbildningsintyg/Kursplan/JKA:** sina egna Compose-projekt, applikationskonfigurationer, databasvolymer, migreringar, tester och uppdateringar.
 - **Cloudflare-kontrollpanelen:** tunnel, publicerade hostname-rutter, DNS, edge-certifikat och Access-policyer.
+
+## 9. Fail2ban för SSH på värdservern
+
+Fail2ban körs i samma Compose-projekt som cloudflared på Linuxvärden. Den monterar värdens systemd-journal skrivskyddat och använder värdnätverket för att lägga blockeringsregler i brandväggens `INPUT`-kedja. Regeln i `fail2ban/jail.d/sshd-jk.local` blockerar nya anslutningar till port `22` i en timme efter fem matchande fel från samma IP-adress inom tio minuter. Fail2bans databas sparas i Compose-volymen `fail2ban_data`.
+
+Kör uppdateringen på Linuxvärden där OpenSSH skriver till systemd-journalen och Docker har åtkomst till värdens nätverk och brandvägg. Anpassa regelns `port` om OpenSSH använder en annan port. Om en befintlig Fail2ban-instans redan hanterar värdens SSH ska dess `sshd`-regel avaktiveras före övergången, så att en instans äger SSH-blockeringarna.
+
+Vid den första uppdateringen från den äldre versionen, hämta det nya skriptet och kör det på värden.
+
+~~~bash
+git pull --ff-only
+python3 update.py
+~~~
+
+Vid senare uppdateringar räcker `python3 update.py`. Skriptet hittar värdens aktuella systemd-journal i `/var/log/journal` eller `/run/log/journal`, hämtar avbilderna, väntar på att Compose-tjänsterna blir redo, laddar om SSH-regeln och kontrollerar dess status. Ange `FAIL2BAN_JOURNAL_DIR` i kommandots miljö om du behöver välja journalens sökväg manuellt.
+
+Behåll din befintliga SSH-session öppen vid första uppdateringen och testa därefter en ny SSH-inloggning. Kontrollera status och loggar vid behov.
+
+~~~bash
+docker compose exec -T fail2ban fail2ban-client status sshd
+docker compose logs --tail=100 fail2ban
+~~~
+
+För att pausa SSH-skyddet, kör `docker compose stop fail2ban`. Nästa körning av `update.py` startar tjänsten igen.
 
 ### Referenser
 
@@ -227,3 +251,4 @@ Kontrollera också att JKA från en **icke behörig** klient möts av Access-inl
 - [Cloudflare Tunnel – kom igång](https://developers.cloudflare.com/tunnel/get-started/)
 - [Cloudflare Access – skydda interna webbapplikationer](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/)
 - [Docker Compose – nätverk över flera Compose-projekt](https://docs.docker.com/compose/how-tos/networking/)
+- [Fail2ban – Compose-exempel med systemd-journal](https://github.com/crazy-max/docker-fail2ban/tree/master/examples/systemd)
