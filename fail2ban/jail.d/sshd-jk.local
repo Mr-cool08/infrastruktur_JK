@@ -1,0 +1,9 @@
+[sshd]
+enabled = true
+filter = sshd
+backend = systemd
+port = 22
+chain = INPUT
+maxretry = 5
+findtime = 10m
+bantime = 1h

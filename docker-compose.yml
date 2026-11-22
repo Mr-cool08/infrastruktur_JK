@@ -15,6 +15,40 @@ services:
       - tunnel
       - private
 
+  fail2ban:
+    image: crazymax/fail2ban:1.1.1-debian
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - fail2ban_data:/data
+      - type: bind
+        source: ./fail2ban/jail.d
+        target: /data/jail.d
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${FAIL2BAN_JOURNAL_DIR:-/var/log/journal}
+        target: /var/log/journal
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/machine-id
+        target: /etc/machine-id
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD-SHELL", "fail2ban-client status sshd && iptables -w -S INPUT >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 networks:
   tunnel:
     external: true
@@ -23,3 +57,6 @@ networks:
   private:
     external: true
     name: jk_private_net
+
+volumes:
+  fail2ban_data:
